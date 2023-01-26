@@ -145,9 +145,6 @@ function run_cron() {
 
 		$get_products_json = $wpdb->get_row("SELECT * FROM  $wpdb->termmeta WHERE meta_key = 'products_json' LIMIT 1");
 		if(isset($get_products_json->meta_value)) {
-			$json_data = get_term_meta($get_products_json->term_id, 'products_json',true);
-
-			echo "SELECT * FROM  $wpdb->termmeta WHERE meta_key = 'products_json' LIMIT 1";
 			sid_console_log("Product Trigger");
 
 			$get_products_json_decode = json_decode($get_products_json->meta_value, true);
@@ -224,35 +221,54 @@ function fetch_and_insert_category($cat_term_id, $CurrentPageNumber = 0) {
 
 function insert_or_update_product($product, $category_id){
 	global $wpdb;
-	$pageurl = 'https://funtasticuniform.yourwebshop.com'.$product->DetailPageUrl;	
+	if(is_array($product)) {
+		$DetailPageUrl = $product['DetailPageUrl'];
+		$BrandPicture = $product['BrandPicture'];
+		$ProductGroup = $product['ProductGroup'];
+		$productName = $product['Name'];
+		$productMainImage = $product['MainImage'];
+		$productImages = $product['Images'];
+		$productBrandName = $product['BrandName'];
+		$productBrandId = $product['BrandId'];
+	} else {
+		$DetailPageUrl = $product->DetailPageUrl;
+		$BrandPicture = $product->BrandPicture;
+		$ProductGroup = $product->ProductGroup;
+		$productName = $product->Name;
+		$productMainImage = $product->MainImage;
+		$productImages = $product->Images;
+		$productBrandName = $product->BrandName;
+		$productBrandId = $product->BrandId;
+	}
+	$pageurl = 'https://funtasticuniform.yourwebshop.com'.$DetailPageUrl;	
 
-	$product_data = scrap_product_html($pageurl, $product->BrandPicture);
+	$product_data = scrap_product_html($pageurl, $BrandPicture);
 	$check_product_exist = $wpdb->get_row("
 	    SELECT * 
 	    FROM  ".$wpdb->prefix."postmeta
-	        WHERE meta_value = '".$product->ProductGroup."'
+	        WHERE meta_value = '".$ProductGroup."'
 	");
 	if(!empty($check_product_exist)) {
 		$get_product = $wpdb->get_row("
 		    SELECT * 
 		    FROM  ".$wpdb->prefix."ralawise_sid_products
-		        WHERE productgroup = '".$product->ProductGroup."'
+		        WHERE productgroup = '".$ProductGroup."'
 		");
 		$data_array = array();
 	
 		wp_set_object_terms( $check_product_exist->post_id, 'variable', 'product_type');
-	    update_post_meta($check_product_exist->post_id, "product_meta_group", $product->ProductGroup);
+	    update_post_meta($check_product_exist->post_id, "product_meta_group", $ProductGroup);
 
-		if($get_product->name != $product->Name) {
-			$data_array['post_title'] = $product->Name;
+		if($get_product->name != $productName) {
+			$data_array['post_title'] = $productName;
 		} 
-		if($get_product->MainImage != $product->MainImage) {
-			$main_img_attachment_id = sid_upload_from_url("https://funtasticuniform.yourwebshop.com/".$product->MainImage);
+		if($get_product->MainImage != $productMainImage) {
+			$main_img_attachment_id = sid_upload_from_url("https://funtasticuniform.yourwebshop.com/".$productMainImage);
 			$wpdb->query($wpdb->prepare("UPDATE `".$wpdb->prefix."postmeta` SET `meta_value` = '%s' WHERE `meta_key` = '_thumbnail_id' AND post_id = '%s';",$main_img_attachment_id, $check_product_exist->post_id));
 		} 
-		if($get_product->Images != json_encode($product->Images)) {
+		if($get_product->Images != json_encode($productImages)) {
 			$gallery_image = '';
-			foreach ($product->Images as $Images_key => $Images_value) {
+			foreach ($productImages as $Images_key => $Images_value) {
 				if($gallery_image == '') {
 					$gallery_image .= sid_upload_from_url("https://funtasticuniform.yourwebshop.com/".$Images_value);
 				} else {
@@ -281,33 +297,33 @@ function insert_or_update_product($product, $category_id){
 			}
 		}
 
-		$wpdb->query($wpdb->prepare("UPDATE `".$wpdb->prefix."ralawise_sid_products` SET `name`='%s', `productgroup`='%s', `MainImage`='%s', `Images`='%s', `BrandPicture`='%s', `BrandName`='%s', `BrandId`='%s', `brand_term_id`='%s', `prod_decritpion`='%s', `variant_products`='%s', `category_id`='%s' WHERE productgroup='%s';", $product->Name, $product->ProductGroup, $product->MainImage, json_encode($product->Images), $product->BrandPicture, $product->BrandName, $product->BrandId, $product_data['brand_term_id'], $product_data['prod_decritpion'], $product_data['variant_array_sku'], $category_id, $product->ProductGroup));
+		$wpdb->query($wpdb->prepare("UPDATE `".$wpdb->prefix."ralawise_sid_products` SET `name`='%s', `productgroup`='%s', `MainImage`='%s', `Images`='%s', `BrandPicture`='%s', `BrandName`='%s', `BrandId`='%s', `brand_term_id`='%s', `prod_decritpion`='%s', `variant_products`='%s', `category_id`='%s' WHERE productgroup='%s';", $productName, $ProductGroup, $productMainImage, json_encode($productImages), $BrandPicture, $productBrandName, $productBrandId, $product_data['brand_term_id'], $product_data['prod_decritpion'], $product_data['variant_array_sku'], $category_id, $ProductGroup));
 	} else {
-		$wpdb->query($wpdb->prepare("INSERT INTO `".$wpdb->prefix."ralawise_sid_products` (`name`, `productgroup`, `MainImage`, `Images`, `BrandPicture`, `BrandName`, `BrandId`, `brand_term_id`, `prod_decritpion`, `variant_products`, `category_id`) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s', '%s', '%s','%s');", $product->Name, $product->ProductGroup,$product->MainImage,json_encode($product->Images),$product->BrandPicture,$product->BrandName,$product->BrandId,$product_data['brand_term_id'],$product_data['prod_decritpion'],$product_data['variant_array_sku'],$category_id));
+		$wpdb->query($wpdb->prepare("INSERT INTO `".$wpdb->prefix."ralawise_sid_products` (`name`, `productgroup`, `MainImage`, `Images`, `BrandPicture`, `BrandName`, `BrandId`, `brand_term_id`, `prod_decritpion`, `variant_products`, `category_id`) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s', '%s', '%s','%s');", $productName, $ProductGroup,$productMainImage,json_encode($productImages),$BrandPicture,$productBrandName,$productBrandId,$product_data['brand_term_id'],$product_data['prod_decritpion'],$product_data['variant_array_sku'],$category_id));
 
 	    $post_id = wp_insert_post(array(
-	        'post_title' => $product->Name,
+	        'post_title' => $productName,
 	        'post_type' => 'product',
 	        'post_status' => 'publish',
 	        'post_content' => $product_data['prod_decritpion'],
 	    ));
 
 		wp_set_object_terms( $post_id, 'variable', 'product_type' );
-	    update_post_meta($post_id, "product_meta_group", $product->ProductGroup);
+	    update_post_meta($post_id, "product_meta_group", $ProductGroup);
 	    update_post_meta($post_id, "product_variant_rala", $product_data['variant_array_sku']);
 	    
 	    $wc_product = wc_get_product( $post_id );
-	    $wc_product->set_sku($product->ProductGroup);
+	    $wc_product->set_sku($ProductGroup);
 
 		$wpdb->query($wpdb->prepare("INSERT INTO `".$wpdb->prefix."term_relationships` (`object_id`, `term_taxonomy_id`) VALUES ('%s', '%s');",$post_id, $category_id));
 		$wpdb->query($wpdb->prepare("INSERT INTO `".$wpdb->prefix."term_relationships` (`object_id`, `term_taxonomy_id`) VALUES ('%s', '%s');",$post_id,$product_data['brand_term_id']));
 
 		// Upload main Image
-		$main_img_attachment_id = sid_upload_from_url("https://funtasticuniform.yourwebshop.com/".$product->MainImage);
+		$main_img_attachment_id = sid_upload_from_url("https://funtasticuniform.yourwebshop.com/".$productMainImage);
 		$wpdb->query($wpdb->prepare("INSERT INTO `".$wpdb->prefix."postmeta` (`post_id`, `meta_key`, `meta_value`) VALUES ('%s','_thumbnail_id', '%s');",$post_id,$main_img_attachment_id));
 
 		$gallery_image = '';
-		foreach ($product->Images as $Images_key => $Images_value) {
+		foreach ($productImages as $Images_key => $Images_value) {
 			if($gallery_image == '') {
 				$gallery_image .= sid_upload_from_url("https://funtasticuniform.yourwebshop.com/".$Images_value);
 			} else {
@@ -352,6 +368,7 @@ function get_brand_term_id($brand_name, $brand_img) {
 	    FROM  ".$wpdb->prefix."ralawise_sid_brands
 	        WHERE brand_name = '".esc_html($brand_name)."'
 	");
+
 	if(empty($result->brand_img) || $result->brand_img == '') {
 		$attachment_id = sid_upload_from_url("https://funtasticuniform.yourwebshop.com/".$brand_img);
 
