@@ -42,6 +42,10 @@ function on_activate()
 		  `brandname` text NULL,
 		  `brandid` text NULL,
 		  `sename` text NULL,
+		  `prod_decritpion` text NULL,
+		  `variant_products` text NULL,
+		  `category_id` text NULL,
+		  `brand_term_id` text NULL,
 		  `fromprice` text NULL,
 		  `vatable` text NULL,
 		  `mainimage` text NULL,
@@ -87,6 +91,7 @@ function run_cron() {
 
 	if( isset( $_GET['run_cron'] ) ) {
 		// EXIT();
+		$rala_run_cron = get_option('rala_run_cron');
 		sid_console_log("Run Cron Start");
 		$get_variant_json = $wpdb->get_row("SELECT * FROM  $wpdb->postmeta WHERE meta_key = 'product_variant_rala' LIMIT 1");
 		if(isset($get_variant_json->meta_value)) {
@@ -136,7 +141,7 @@ function run_cron() {
 			$count = 0;
 			foreach ($get_categories_id as $cat_key => $cat_value) {
 				fetch_and_insert_category($cat_value->term_id, 0);
-				if($count == 10) {
+				if($count == 20) {
 					break;
 				}
 				$count++;
@@ -155,7 +160,7 @@ function run_cron() {
 					sid_console_log("Product Insert");
 					insert_or_update_product($get_products_value, $get_products_json->term_id);
 					unset($get_products_json_decode[$get_products_key]);
-					if($count_product == 2) {
+					if($count_product == 10) {
 						break;
 					}
 					$count_product++;
@@ -423,7 +428,11 @@ function insert_or_update_cat($cat_array,$parent_id) {
 			}
 		} else {
 			if($parent_id != $cat_value['Id']) {
-				$cid = wp_insert_term( $cat_value['Name'], 'product_cat', array('parent'=>$parent_id));
+				echo '111122---'.$parent_id;
+				echo "<br>";
+				echo '222233---'.$cat_value['Name'];
+				echo "<br>";
+				$cid = wp_insert_term($cat_value['Name'], 'product_cat', array('parent'=>$parent_id));
 				if ( ! is_wp_error( $cid ) )
 				{
 				    $cat_id = isset( $cid['term_id'] ) ? $cid['term_id'] : 0;
